@@ -270,7 +270,35 @@ class DifferentiableTools:
                 material_grads = [material_grads[i][mappings[i]] for i in range(len(material_grads))]
             
             distance_grads = [distance_grads[i][mappings[i]] for i in range(len(distance_grads))]
-        
+
+            for i in range(len(distance_grads)):
+                # if distance_grads[i].shape != x0s[i].shape:
+                #     g = np.zeros_like(x0s[i])
+                #     g[:distance_grads[i].shape[0], :distance_grads[i].shape[1]] = distance_grads[i]
+                #     distance_grads[i] = g
+                # In LINKS\Optimization\_DifferentiableTools.py (around line 275)
+                if distance_grads[i].shape != x0s[i].shape:
+                    g = np.zeros_like(x0s[i])
+                    
+                    # CRITICAL FIX: Explicitly reshape the 1D gradient array to the expected 2D shape (like x0s[i]).
+                    try:
+                        # Reshape to the target shape (x0s[i].shape is likely N joints x 2 coordinates)
+                        reshaped_grad = distance_grads[i].reshape(x0s[i].shape)
+                        
+                        # Now assign the 2D reshaped gradient to 'g'.
+                        g[:] = reshaped_grad
+                        
+                    except ValueError:
+                        # Fallback if reshape is impossible (e.g., array sizes don't match)
+                        # This keeps the original array assignment pattern but uses .flat to avoid the IndexError
+                        g.flat[:distance_grads[i].size] = distance_grads[i]
+
+                    distance_grads[i] = g
+                if self.material:
+                    if material_grads[i].shape != x0s[i].shape:
+                        g = np.zeros_like(x0s[i])
+                        g[:material_grads[i].shape[0], :material_grads[i].shape[1]] = material_grads[i]
+                        material_grads[i] = g
         
         invalids = np.array([np.isnan(distance_grads[i]).any() for i in range(len(distance_grads))])
         distances[invalids] = np.inf
